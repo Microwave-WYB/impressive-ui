@@ -68,15 +68,6 @@ class AbstractMutableState(Generic[T], Protocol):
         """
         ...
 
-    def bind_twoway(self, target: Any, property_name: str) -> Any:
-        """
-        Create a bidirectional binding between this state and a property on a target object.
-
-        Changes to either the state or the target property will be synchronized automatically.
-        Returns a binding object that can be used to manage the binding.
-        """
-        ...
-
     def set(self, value: T) -> None:
         """Set the state to a new value."""
         ...
