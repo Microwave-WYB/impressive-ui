@@ -28,6 +28,8 @@ def HelloWorld():
         entry = QLineEdit()
         entry.setPlaceholderText("Enter your name...")
         entry.setFixedWidth(200)
+        # Manual two-way binding using watch and signals
+        name.watch(lambda text: entry.setText(text) if entry.text() != text else None)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
             lambda: print(f"Entry activated with text: {name._value}")
@@ -38,7 +40,9 @@ def HelloWorld():
     def _():
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "text")
+        # Use watch pattern to update label text
+        greeting_state = name.map(lambda x: f"Hello, {x or '...'}!")
+        greeting_state.watch(lambda text: label.setText(text))
         return label
 
     return widget

@@ -1,9 +1,9 @@
 from gi.repository import Gtk  # type: ignore
-from impressive_ui.abc.state import AbstractState
+from impressive_ui.gtk.state import State
 
 
 def Conditional(
-    state: AbstractState[bool],
+    state: State[bool],
     true: Gtk.Widget,
     false: Gtk.Widget,
 ) -> Gtk.Overlay:
@@ -11,5 +11,9 @@ def Conditional(
     Create a Gtk.Overlay that conditionally shows one of two widgets based on the state.
     """
     overlay = Gtk.Overlay()
-    state.map(lambda condition: true if condition else false).bind(overlay, "child")
+    
+    def update_child(condition: bool) -> None:
+        overlay.set_child(true if condition else false)
+    
+    state.watch(update_child)
     return overlay

@@ -7,30 +7,15 @@ T_co = TypeVar("T_co", covariant=True)
 
 @runtime_checkable
 class AbstractState(Generic[T_co], Protocol):
+    def get(self) -> T_co:
+        """Get the current state value."""
+        ...
+
     def watch(self, callback: Callable[[T_co], Any]) -> Callable[[], None]:
         """
         Register a callback to be called when the state changes.
 
         Returns a function that can be called to unregister the callback.
-        """
-        ...
-
-    def map(self, mapper: Callable[[T_co], U], /) -> "AbstractState[U]":
-        """
-        Create a new derived state that transforms this state's value using the provided mapper function.
-
-        The derived state will automatically update when the original state changes.
-
-        The derived state is immutable, meaning you cannot set its value directly.
-        """
-        ...
-
-    def bind(self, target: Any, property_name: str) -> Any:
-        """
-        Bind this state's value to a property on a target object.
-
-        When the state changes, the target object's property will be updated automatically.
-        Returns a binding object that can be used to manage the binding.
         """
         ...
 
@@ -46,25 +31,6 @@ class AbstractMutableState(Generic[T], Protocol):
         Register a callback to be called when the state changes.
 
         Returns a function that can be called to unregister the callback.
-        """
-        ...
-
-    def map(self, mapper: Callable[[T], U], /) -> "AbstractState[U]":
-        """
-        Create a new derived state that transforms this state's value using the provided mapper function.
-
-        The derived state will automatically update when the original state changes.
-
-        The derived state is immutable, meaning you cannot set its value directly.
-        """
-        ...
-
-    def bind(self, target: Any, property_name: str) -> Any:
-        """
-        Bind this state's value to a property on a target object.
-
-        When the state changes, the target object's property will be updated automatically.
-        Returns a binding object that can be used to manage the binding.
         """
         ...
 

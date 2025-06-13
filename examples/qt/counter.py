@@ -20,7 +20,8 @@ def Counter() -> QWidget:
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setStyleSheet("font-size: 24px; font-weight: bold;")
-        count.map(str).bind(label, "text")
+        count_text = count.map(str)
+        count_text.watch(lambda text: label.setText(text))
         return label
 
     @apply(layout.addWidget)

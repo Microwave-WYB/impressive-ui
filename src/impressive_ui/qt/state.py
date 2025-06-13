@@ -7,7 +7,6 @@ if TYPE_CHECKING:
         check_state_impl,
         check_mutable_state_impl,
     )
-    from impressive_ui.abc import AbstractState
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -19,6 +18,9 @@ class State(QObject, Generic[T]):
     def __init__(self, initial_value: T) -> None:
         super().__init__()
         self._value = initial_value
+
+    def get(self) -> T:
+        return self._value
 
     @property
     def value(self) -> T:
@@ -33,20 +35,10 @@ class State(QObject, Generic[T]):
 
         return disconnect_callback
 
-    def map(self, mapper: Callable[[T], U], /) -> "AbstractState[U]":
+    def map(self, mapper: Callable[[T], U], /) -> "State[U]":
         derived = MutableState(mapper(self._value))
         self.watch(lambda v: derived.set(mapper(v)))
         return derived
-
-    def bind(self, target: QObject, property_name: str) -> None:
-        # Set initial value
-        target.setProperty(property_name, self._value)
-
-        # Connect to future changes
-        def update_target(v):
-            target.setProperty(property_name, v)
-
-        self.valueChanged.connect(update_target)
 
 
 if TYPE_CHECKING:

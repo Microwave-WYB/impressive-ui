@@ -90,6 +90,8 @@ def HelloWorld():
         entry = QLineEdit()
         entry.setPlaceholderText("Enter your name...")
         entry.setFixedWidth(200)
+        # Manual two-way binding using watch and signals
+        name.watch(lambda text: entry.setText(text) if entry.text() != text else None)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
             lambda: print(f"Entry activated with text: {name._value}")
@@ -100,7 +102,9 @@ def HelloWorld():
     def _():
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "text")
+        # Use watch pattern to update label
+        greeting = name.map(lambda x: f"Hello, {x or '...'}!")
+        greeting.watch(lambda text: label.setText(text))
         return label
 
     return widget
@@ -155,7 +159,7 @@ Traditional UI programming requires manual state management, explicit event hand
 - **Reactive State Management**: Automatic UI updates when state changes
 - **Type Safety**: Full generic type support with proper inference
 - **Declarative Patterns**: Compose UIs with functional programming
-- **Cross-Platform**: Same patterns work across GTK and Qt
+- **Framework-Optimized**: GTK gets property binding, Qt uses efficient watch patterns
 - **Modern Styling**: CSS-like styling with Python syntax (Qt)
 
 ## Core Concepts
@@ -170,6 +174,7 @@ counter = MutableState(0)
 
 # Read current value
 print(counter.value)  # 0
+print(counter.get())  # 0
 
 # Update state
 counter.set(5)
@@ -184,26 +189,26 @@ unwatch = counter.watch(lambda value: print(f"Count: {value}"))
 unwatch()  # Stop watching
 ```
 
-### Property Binding
+### Framework-Specific Binding
 
-Bind state directly to widget properties:
-
-**GTK:**
+**GTK - Built-in Property Binding:**
 ```python
-# One-way binding
+# One-way binding (property name only)
 text_state.bind(label, "label")
 
 # Two-way binding
 entry_text.bind_twoway(entry, "text")
 ```
 
-**Qt:**
+**Qt - Watch Pattern:**
 ```python
-# One-way binding
-text_state.bind(label, "text")
+# One-way binding using watch
+text_state.watch(lambda text: label.setText(text))
+# Or using property
+text_state.watch(lambda text: label.setProperty("text", text))
 
 # Manual two-way binding
-text_state.bind(entry, "text")
+text_state.watch(lambda text: entry.setText(text) if entry.text() != text else None)
 entry.textChanged.connect(text_state.set)
 ```
 
@@ -368,7 +373,7 @@ class HelloWorldWidget(Gtk.Box):
         self.label.set_text(f"Hello, {self.name or '...'}!")
 ```
 
-**Impressive UI Declarative:**
+**Impressive UI GTK:**
 ```python
 def HelloWorld():
     name = MutableState("")
@@ -388,6 +393,31 @@ def HelloWorld():
         return label
 
     return box
+```
+
+**Impressive UI Qt:**
+```python
+def HelloWorld():
+    name = MutableState("")
+
+    widget = QWidget()
+    layout = QVBoxLayout(widget)
+
+    @apply(layout.addWidget)
+    def _():
+        entry = QLineEdit()
+        name.watch(lambda text: entry.setText(text) if entry.text() != text else None)
+        entry.textChanged.connect(name.set)
+        return entry
+
+    @apply(layout.addWidget)
+    def _():
+        label = QLabel()
+        greeting = name.map(lambda x: f"Hello, {x or '...'}!")
+        greeting.watch(lambda text: label.setText(text))
+        return label
+
+    return widget
 ```
 
 ## Examples
@@ -471,16 +501,22 @@ class AppState:
 
 ### State Classes
 
-#### `State[T]`
-- `value: T` - Current state value (read-only)
+#### `State[T]` (Base class)
+- `get() -> T` - Get current state value
+- `value: T` - Current state value (property)
 - `watch(callback: (T) -> Any) -> (() -> None)` - Watch for changes
 - `map(mapper: (T) -> U) -> State[U]` - Create derived state
-- `bind(target: Widget, property: str) -> Binding` - Bind to widget property
 
 #### `MutableState[T]` (extends State[T])
 - `set(value: T) -> None` - Set new value
 - `update(updater: (T) -> T) -> None` - Update with function
-- `bind_twoway(target: Widget, property: str) -> Binding` - Two-way binding (GTK only)
+
+#### GTK-Specific Methods
+- `bind(target: Widget, property: str) -> Binding` - One-way property binding
+- `bind_twoway(target: Widget, property: str) -> Binding` - Two-way property binding
+
+#### Qt-Specific Pattern
+- Use `watch()` method for all UI updates - no built-in binding methods
 
 ### qss Styling (Qt only)
 

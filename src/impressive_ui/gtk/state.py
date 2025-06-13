@@ -7,7 +7,6 @@ if TYPE_CHECKING:
         check_state_impl,
         check_mutable_state_impl,
     )
-    from impressive_ui.abc import AbstractState
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -22,17 +21,21 @@ class State(GObject.GObject, Generic[T]):
         super().__init__()
         self.value = initial_value
 
+    def get(self) -> T:
+        return self.value
+
     def watch(self, callback: Callable[[T], Any]) -> Callable[[], None]:
         callback(self.value)  # Call immediately with current value
         connection = self.connect("notify::value", lambda *_: callback(self.value))
         return lambda: self.disconnect(connection)
 
-    def map(self, mapper: Callable[[T], U], /) -> "AbstractState[U]":
+    def map(self, mapper: Callable[[T], U], /) -> "State[U]":
         derived = MutableState(mapper(self.value))
         self.watch(lambda v: derived.set(mapper(v)))
         return derived
 
     def bind(self, target: GObject.Object, property_name: str) -> GObject.Binding:
+        """Bind this state to a GObject property using GTK's property binding system."""
         return self.bind_property(
             "value",
             target,
