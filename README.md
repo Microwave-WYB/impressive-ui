@@ -63,53 +63,43 @@ if __name__ == "__main__":
 
 ```python
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QLineEdit
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QLineEdit,
+)
 from PySide6.QtCore import Qt
 
-from impressive_ui.qt import MutableState, Style
+from impressive_ui.qt import MutableState, qss
 from impressive import apply
 
 def HelloWorld():
+    # Create reactive state
     name = MutableState("")
 
     widget = QWidget()
     layout = QVBoxLayout(widget)
     layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    layout.setSpacing(12)
 
     @apply(layout.addWidget)
     def _():
         entry = QLineEdit()
         entry.setPlaceholderText("Enter your name...")
-
-        # Beautiful styling
-        entry_style = Style["QLineEdit"](
-            padding="12px 16px",
-            border="2px solid #e1bee7",
-            border_radius="12px",
-            font_size="16px",
-            background_color="#fce4ec"
-        ).compile()
-        entry.setStyleSheet(entry_style)
-
-        name.bind(entry, "text")
+        entry.setFixedWidth(200)
         entry.textChanged.connect(name.set)
+        entry.returnPressed.connect(
+            lambda: print(f"Entry activated with text: {name._value}")
+        )
         return entry
 
     @apply(layout.addWidget)
     def _():
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        label_style = Style(
-            font_size="28px",
-            font_weight="600",
-            color="#4a148c",
-            padding="16px 24px",
-            background_color="qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f3e5f5, stop:1 #e8eaf6)",
-            border_radius="16px"
-        ).compile()
-        label.setStyleSheet(label_style)
-
         name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "text")
         return label
 
@@ -117,9 +107,44 @@ def HelloWorld():
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
     window = QMainWindow()
-    window.setCentralWidget(HelloWorld())
+    window.setWindowTitle("Hello Impressive Qt")
+    window.setFixedSize(450, 250)
+
+    # Beautiful gradient styling - combine stylesheets with +
+    window.setStyleSheet(
+        qss[QMainWindow](
+            background_color="qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f8bbd9, stop:0.5 #e8eaf6, stop:1 #c8e6c9)",
+            font_family="SF Pro Display, system-ui, sans-serif",
+        )
+        + qss[QLabel](
+            font_size="28px",
+            font_weight="600",
+            color="#4a148c",
+            padding="16px 24px",
+            background_color="qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f3e5f5, stop:1 #e8eaf6)",
+            border="2px solid #ce93d8",
+            border_radius="16px",
+            font_family="SF Pro Display, system-ui, sans-serif",
+            text_align="center",
+        )
+        + qss[QLineEdit](
+            padding="12px 16px",
+            border="2px solid #e1bee7",
+            border_radius="12px",
+            font_size="16px",
+            background_color="#fce4ec",
+            color="#6a1b9a",
+            font_family="SF Pro Display, system-ui, sans-serif",
+        )
+    )
+
+    central_widget = HelloWorld()
+    window.setCentralWidget(central_widget)
+
     window.show()
+
     sys.exit(app.exec())
 ```
 
@@ -209,39 +234,45 @@ def _():
 
 ### Styling System
 
-Qt implementation includes a powerful CSS-in-Python styling system:
+Qt implementation includes a powerful CSS-in-Python styling system using `qss`:
 
 ```python
-from impressive_ui.qt.style import Style
+from impressive_ui.qt import qss
 
-# Inline styles (no selector)
+# Inline styles (no selector) - for direct widget.setStyleSheet()
 label = QLabel("Styled text")
-style = Style(
+label.setStyleSheet(qss(
     font_size="18px",
     color="#333",
     padding="10px",
     background_color="#f0f0f0",
     border_radius="6px"
-).compile()
-label.setStyleSheet(style)
+))
 
-# Selector-based styles
-button_style = Style["QPushButton"](
+# Selector-based styles - qss[...] compiles to string
+window.setStyleSheet(qss[QPushButton](
     background_color="#3498db",
     color="white",
     border="none",
     padding="8px 16px"
-).compile()
+))
 
 # Hover effects
-hover_style = Style["QPushButton:hover"](
+button.setStyleSheet(qss["QPushButton:hover"](
     background_color="#2980b9"
-).compile()
+))
 
 # Multiple selectors
-multi_style = Style[(QLabel, QPushButton)](
+container.setStyleSheet(qss[(QLabel, QPushButton)](
     font_family="Arial, sans-serif"
-).compile()
+))
+
+# Combine stylesheets with simple string concatenation
+window.setStyleSheet(
+    qss[QMainWindow](background_color="#f0f0f0") +
+    qss[QPushButton](color="blue") +
+    qss[QLabel](font_weight="bold")
+)
 ```
 
 #### Available Style Properties
@@ -451,13 +482,14 @@ class AppState:
 - `update(updater: (T) -> T) -> None` - Update with function
 - `bind_twoway(target: Widget, property: str) -> Binding` - Two-way binding (GTK only)
 
-### Style Classes (Qt only)
+### qss Styling (Qt only)
 
-#### `Style`
-- `Style(**properties) -> Style` - Create inline style
-- `Style[selector](**properties) -> Style` - Create style with selector
-- `with_selector(selector: str) -> Style` - Add selector to existing style
-- `compile() -> str` - Generate CSS string
+#### `qss`
+- `qss(**properties) -> str` - Create inline stylesheet (no selector)
+- `qss[selector](**properties) -> str` - Create stylesheet with selector
+- Supports widget types, tuples of types, or string selectors
+- Results are strings that can be combined with `+` operator
+- Python property names automatically convert to CSS (e.g., `background_color` → `background-color`)
 
 ## Type Safety
 
