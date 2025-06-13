@@ -4,7 +4,7 @@
 
 An (almost) declarative, reactive UI framework for Python applications, built on top of the [impressive](https://github.com/Microwave-WYB/impressive) DSL library. Impressive UI transforms traditional imperative UI programming into an expressive, functional approach with automatic state management and reactive data binding.
 
-Currently supports GTK with Qt support planned.
+Currently supports both GTK and Qt with PySide6.
 
 ## Installation
 
@@ -14,53 +14,24 @@ For GTK:
 pip install git+https://github.com/Microwave-WYB/impressive-ui.git[gtk]
 ```
 
-For Qt (not yet available):
+For Qt:
 
 ```sh
 pip install git+https://github.com/Microwave-WYB/impressive-ui.git[qt]
 ```
 
-## Why Impressive UI?
+## Quick Start
 
-Traditional UI programming requires manual state management, explicit event handling, and imperative DOM manipulation. Impressive UI leverages the power of the `impressive` DSL to provide a declarative alternative that's more maintainable and expressive.
-
-## GTK
-
-### Getting Started with GTK
-
-Traditional GTK programming requires manual state management, explicit event handling, and imperative widget manipulation. Impressive UI for GTK provides a declarative alternative that's more maintainable and expressive.
-
-#### Traditional vs Declarative
-
-**Traditional GTK approach:**
+### GTK Example
 
 ```python
-class HelloWorldWidget(Gtk.Box):
-    def __init__(self):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+import gi
+from impressive_ui.gtk import MutableState
+from impressive import apply
 
-        self.name = ""
+gi.require_versions({"Gtk": "4.0", "Adw": "1"})
+from gi.repository import Adw, Gtk
 
-        self.entry = Gtk.Entry(placeholder_text="Enter your name...")
-        self.entry.connect("activate", self._on_entry_activate)
-        self.entry.connect("changed", self._on_entry_changed)
-        self.append(self.entry)
-
-        self.label = Gtk.Label(css_classes=["title-1"])
-        self._update_label()
-        self.append(self.label)
-
-    def _on_entry_changed(self, entry):
-        self.name = entry.get_text()
-        self._update_label()
-
-    def _update_label(self):
-        self.label.set_text(f"Hello, {self.name or '...'}!")
-```
-
-**Impressive UI declarative approach:**
-
-```python
 def HelloWorld():
     name = MutableState("")
 
@@ -79,156 +50,215 @@ def HelloWorld():
         return label
 
     return box
+
+if __name__ == "__main__":
+    app = Adw.Application()
+    app.connect("activate", lambda app: Adw.ApplicationWindow(
+        application=app, content=HelloWorld()
+    ).present())
+    app.run([])
 ```
 
-The declarative approach eliminates boilerplate, automatically handles state synchronization, and makes the component's data flow explicit and easy to reason about.
-
-### Core Concepts
-
-#### State Management
-
-Impressive UI provides reactive state management through `MutableState` and `State` objects:
+### Qt Example
 
 ```python
-from impressive_ui.gtk import MutableState, State
+import sys
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QLineEdit
+from PySide6.QtCore import Qt
 
+from impressive_ui.qt import MutableState, Style
+from impressive import apply
+
+def HelloWorld():
+    name = MutableState("")
+
+    widget = QWidget()
+    layout = QVBoxLayout(widget)
+    layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+    @apply(layout.addWidget)
+    def _():
+        entry = QLineEdit()
+        entry.setPlaceholderText("Enter your name...")
+
+        # Beautiful styling
+        entry_style = Style["QLineEdit"](
+            padding="12px 16px",
+            border="2px solid #e1bee7",
+            border_radius="12px",
+            font_size="16px",
+            background_color="#fce4ec"
+        ).compile()
+        entry.setStyleSheet(entry_style)
+
+        name.bind(entry, "text")
+        entry.textChanged.connect(name.set)
+        return entry
+
+    @apply(layout.addWidget)
+    def _():
+        label = QLabel()
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        label_style = Style(
+            font_size="28px",
+            font_weight="600",
+            color="#4a148c",
+            padding="16px 24px",
+            background_color="qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f3e5f5, stop:1 #e8eaf6)",
+            border_radius="16px"
+        ).compile()
+        label.setStyleSheet(label_style)
+
+        name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "text")
+        return label
+
+    return widget
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = QMainWindow()
+    window.setCentralWidget(HelloWorld())
+    window.show()
+    sys.exit(app.exec())
+```
+
+## Why Impressive UI?
+
+Traditional UI programming requires manual state management, explicit event handling, and imperative DOM manipulation. Impressive UI provides:
+
+- **Reactive State Management**: Automatic UI updates when state changes
+- **Type Safety**: Full generic type support with proper inference
+- **Declarative Patterns**: Compose UIs with functional programming
+- **Cross-Platform**: Same patterns work across GTK and Qt
+- **Modern Styling**: CSS-like styling with Python syntax (Qt)
+
+## Core Concepts
+
+### State Management
+
+Both GTK and Qt implementations provide reactive state management:
+
+```python
 # Create mutable reactive state
 counter = MutableState(0)
 
-# Create derived state
-is_even = counter.map(lambda x: x % 2 == 0)
+# Read current value
+print(counter.value)  # 0
 
 # Update state
 counter.set(5)
 counter.update(lambda x: x + 1)
 
-# Watch state changes
-@counter.watch
-def _(value):
-    print(f"Counter changed to: {value}")
+# Create derived state
+doubled = counter.map(lambda x: x * 2)
+is_positive = counter.map(lambda x: x > 0)
+
+# Watch for changes
+unwatch = counter.watch(lambda value: print(f"Count: {value}"))
+unwatch()  # Stop watching
 ```
 
-#### Property Binding
+### Property Binding
 
-Bind state directly to GTK widget properties:
+Bind state directly to widget properties:
 
+**GTK:**
 ```python
-# One-way binding: state → widget
-text_state = MutableState("Hello")
-label = Gtk.Label()
+# One-way binding
 text_state.bind(label, "label")
 
-# Two-way binding: state ↔ widget
-entry_text = MutableState("")
-entry = Gtk.Entry()
+# Two-way binding
 entry_text.bind_twoway(entry, "text")
 ```
 
-#### The `@apply` Decorator
+**Qt:**
+```python
+# One-way binding
+text_state.bind(label, "text")
 
-The `@apply` decorator from the `impressive` library enables powerful composition patterns. **Note:** Apply-decorated functions are executed immediately, and their return value is passed as an argument to the function specified in `apply()`.
+# Manual two-way binding
+text_state.bind(entry, "text")
+entry.textChanged.connect(text_state.set)
+```
 
-Here are the key patterns and best practices:
+### The `@apply` Decorator
 
-##### Simple `apply`
-
-Use for individual widgets with complex setup:
+The `@apply` decorator enables powerful composition patterns:
 
 ```python
-@apply(box.append)
+# Simple widget creation
+@apply(layout.addWidget)  # Qt
+@apply(box.append)        # GTK
 def _():
-    button = Gtk.Button(label="Click me")
-    button.connect("clicked", on_complex_action)
-    button.add_css_class("special-button")
+    button = QPushButton("Click me")  # or Gtk.Button()
+    button.clicked.connect(on_click)
     return button
-```
 
-##### `apply` with `foreach`
-
-**Best practice:** Use `foreach` when setting up multiple widgets with similar configurations:
-
-```python
-@apply(box.append).foreach
+# Multiple widgets
+@apply(layout.addWidget).foreach
 def _():
     return (
-        Gtk.Button(label="Button 1"),
-        Gtk.Button(label="Button 2"),
-        Gtk.Button(label="Button 3"),
+        QPushButton("Button 1"),
+        QPushButton("Button 2"),
+        QPushButton("Button 3"),
     )
 ```
 
-##### Individual `apply` vs `foreach`
+## Qt-Specific Features
 
-Choose based on complexity:
+### Styling System
 
-```python
-# Complex widgets with different setups - use individual apply
-@apply(toolbar.append)
-def _():
-    save_button = Gtk.Button(icon_name="document-save")
-    save_button.connect("clicked", save_document)
-    save_button.set_tooltip_text("Save document")
-    return save_button
-
-@apply(toolbar.append)
-def _():
-    menu_button = Gtk.MenuButton()
-    menu_button.set_popover(create_menu_popover())
-    menu_button.set_icon_name("open-menu")
-    return menu_button
-
-# Simple widgets with similar setups - use foreach
-@apply(button_box.append).foreach
-def _():
-    return (
-        Gtk.Button(label="OK"),
-        Gtk.Button(label="Cancel"),
-        Gtk.Button(label="Apply"),
-    )
-```
-
-##### `apply.unpack_to`
-
-Use `unpack_to` individually for single widgets with positional arguments:
+Qt implementation includes a powerful CSS-in-Python styling system:
 
 ```python
-@apply.unpack_to(grid.attach)
-def _():
-    return (Gtk.Button(label="Center"), 1, 1, 1, 1)  # widget, left, top, width, height
+from impressive_ui.qt.style import Style
+
+# Inline styles (no selector)
+label = QLabel("Styled text")
+style = Style(
+    font_size="18px",
+    color="#333",
+    padding="10px",
+    background_color="#f0f0f0",
+    border_radius="6px"
+).compile()
+label.setStyleSheet(style)
+
+# Selector-based styles
+button_style = Style["QPushButton"](
+    background_color="#3498db",
+    color="white",
+    border="none",
+    padding="8px 16px"
+).compile()
+
+# Hover effects
+hover_style = Style["QPushButton:hover"](
+    background_color="#2980b9"
+).compile()
+
+# Multiple selectors
+multi_style = Style[(QLabel, QPushButton)](
+    font_family="Arial, sans-serif"
+).compile()
 ```
 
-##### Apply Unpack To Foreach
+#### Available Style Properties
 
-Use for multiple widgets that need positional arguments:
+- **Layout**: `width`, `height`, `margin`, `padding`, `min_width`, `max_height`
+- **Colors**: `color`, `background_color`, `border_color`
+- **Typography**: `font_family`, `font_size`, `font_weight`, `text_align`
+- **Borders**: `border`, `border_radius`, `border_style`, `border_width`
+- **Effects**: `background` (gradients), `text_decoration`
 
-```python
-@apply.unpack_to(grid.attach).foreach
-def _():
-    return (
-        (Gtk.Button(label="0"), 0, 0, 1, 1),
-        (Gtk.Button(label="1"), 1, 0, 1, 1),
-        (Gtk.Button(label="2"), 2, 0, 1, 1),
-    )
-```
+Python property names are automatically converted to CSS (e.g., `background_color` → `background-color`).
 
-For complex grid layouts:
-
-```python
-@apply.unpack_to(grid.attach).foreach
-def _():
-    buttons = []
-    for i in range(10):
-        row, col = divmod(i, 3)
-        buttons.append((
-            Gtk.Button(label=str(i)),
-            col, row, 1, 1
-        ))
-    return buttons
-```
+## GTK-Specific Features
 
 ### Factories
 
-Impressive UI provides high-level factory functions for common patterns:
+GTK implementation provides high-level factory functions:
 
 #### ReactiveSequence
 
@@ -240,7 +270,6 @@ from impressive_ui.gtk import ReactiveSequence
 tasks = MutableState([
     TaskViewModel("Buy groceries"),
     TaskViewModel("Walk the dog"),
-    TaskViewModel("Write code"),
 ])
 
 task_list = ReactiveSequence(
@@ -249,11 +278,6 @@ task_list = ReactiveSequence(
     lambda task: TaskWidget(task, on_remove=remove_task)
 )
 ```
-
-The `ReactiveSequence` automatically:
-- Adds widgets when items are added to the state
-- Removes widgets when items are removed
-- Maintains efficient updates with minimal DOM manipulation
 
 #### Conditional
 
@@ -267,13 +291,13 @@ has_tasks = tasks.map(lambda t: len(t) > 0)
 content = Conditional(
     has_tasks,
     true=task_list,
-    false=Gtk.Label(label="No tasks yet", css_classes=["dim-label"])
+    false=Gtk.Label(label="No tasks yet")
 )
 ```
 
 #### Preview
 
-The `Preview` factory enables rapid prototyping and component development:
+Rapid prototyping and component development:
 
 ```python
 from impressive_ui.gtk import Preview
@@ -281,27 +305,96 @@ from impressive_ui.gtk import Preview
 if __name__ == "__main__":
     preview = Preview()
 
-    @preview("TaskWidget")
+    @preview("MyWidget")
     def _(args) -> Gtk.Widget:
-        sample_task = TaskViewModel("Sample Task")
-        return TaskWidget(sample_task, lambda t: print(f"Remove: {t.title}"))
-
-    @preview("Calculator")
-    def _(args) -> Adw.Window:
-        return CalculatorWindow()
+        return MyCustomWidget()
 
     preview.run()
 ```
 
-Run the script and select which component to preview from a simple interface.
+### Traditional vs Declarative
 
-### Real-World Examples
+**Traditional GTK:**
+```python
+class HelloWorldWidget(Gtk.Box):
+    def __init__(self):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.name = ""
 
-**Recommended Design Pattern:** MVVM (Model-View-ViewModel) works exceptionally well with Impressive UI's reactive architecture. See [`examples/gtk/calc.py`](examples/gtk/calc.py) for a comprehensive example of this pattern in practice.
+        self.entry = Gtk.Entry()
+        self.entry.connect("changed", self._on_entry_changed)
+        self.append(self.entry)
 
-#### Todo Application
+        self.label = Gtk.Label()
+        self._update_label()
+        self.append(self.label)
 
-A complete todo app demonstrating state management, two-way binding, and reactive lists:
+    def _on_entry_changed(self, entry):
+        self.name = entry.get_text()
+        self._update_label()
+
+    def _update_label(self):
+        self.label.set_text(f"Hello, {self.name or '...'}!")
+```
+
+**Impressive UI Declarative:**
+```python
+def HelloWorld():
+    name = MutableState("")
+
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+    @apply(box.append)
+    def _():
+        entry = Gtk.Entry()
+        name.bind_twoway(entry, "text")
+        return entry
+
+    @apply(box.append)
+    def _():
+        label = Gtk.Label()
+        name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "label")
+        return label
+
+    return box
+```
+
+## Examples
+
+### GTK Examples
+
+Run GTK examples from the repository:
+
+```bash
+python examples/gtk/hello.py      # Basic hello world
+python examples/gtk/counter.py    # Interactive counter
+python examples/gtk/todo.py       # Todo application
+python examples/gtk/calc.py       # Calculator with MVVM
+```
+
+### Qt Examples
+
+Run Qt examples from the repository:
+
+```bash
+python examples/qt/hello.py       # Beautiful hello world
+python examples/qt/counter.py     # Interactive counter
+python examples/qt/test_style.py  # Styling demonstration
+```
+
+## Best Practices
+
+1. **Single Source of Truth**: Keep state centralized and flow data down
+2. **Pure Functions**: Use pure functions for state transformations
+3. **Immutable Updates**: Always create new state rather than mutating
+4. **Component Composition**: Break UI into small, reusable components
+5. **Reactive Patterns**: Let state changes drive UI updates automatically
+
+## Design Patterns
+
+### MVVM (Model-View-ViewModel)
+
+Recommended pattern for complex applications:
 
 ```python
 class TodoViewModel:
@@ -309,61 +402,82 @@ class TodoViewModel:
         self._tasks = MutableState([])
         self._entry_text = MutableState("")
 
+    @property
+    def tasks(self):
+        return self._tasks
+
+    @property
+    def entry_text(self):
+        return self._entry_text
+
     def add_task(self):
         text = self._entry_text.value.strip()
         if text:
-            new_task = TaskViewModel(text)
+            new_task = TaskModel(text)
             self._tasks.update(lambda ts: [*ts, new_task])
             self._entry_text.set("")
 
-def TaskList(tasks, on_remove):
-    return Conditional(
-        tasks.map(bool),
-        true=ReactiveSequence(
-            Gtk.ListBox(css_classes=["boxed-list"]),
-            tasks,
-            lambda task: TaskWidget(task, on_remove=on_remove)
-        ),
-        false=Gtk.Label(label="No tasks yet", css_classes=["dim-label"])
-    )
+def TodoView(view_model):
+    # UI components that bind to view model state
+    pass
 ```
 
-#### Calculator
-
-A functional calculator with keyboard support and error handling:
+### State Composition
 
 ```python
-class CalculatorViewModel:
+class AppState:
     def __init__(self):
-        self._state = MutableState(CalculatorModel())
+        self.user = MutableState(None)
+        self.theme = MutableState("light")
+        self.notifications = MutableState([])
 
-    def enter(self, action):
-        self._state.update(lambda state: state.update(action))
-
-def ResultsDisplay(view_model):
-    # Reactive display that automatically updates
-    result_label = Gtk.Label(css_classes=["title-1"])
-    view_model.state.map(lambda s: s.result).bind(result_label, "label")
-
-    # Conditional styling based on error state
-    @view_model.state.map(lambda s: s.error).watch
-    def _(has_error):
-        if has_error:
-            result_label.add_css_class("error")
-        else:
-            result_label.remove_css_class("error")
+    @property
+    def is_logged_in(self):
+        return self.user.map(lambda u: u is not None)
 ```
 
-## Qt
+## API Reference
 
-Qt support is planned for future releases.
+### State Classes
 
-## Getting Started
+#### `State[T]`
+- `value: T` - Current state value (read-only)
+- `watch(callback: (T) -> Any) -> (() -> None)` - Watch for changes
+- `map(mapper: (T) -> U) -> State[U]` - Create derived state
+- `bind(target: Widget, property: str) -> Binding` - Bind to widget property
 
-1. Import the necessary modules
-2. Create your state with `MutableState`
-3. Build your UI with the `@apply` decorator
-4. Use factories like `ReactiveSequence` and `Conditional` for dynamic content
-5. Bind state to widget properties for automatic updates
+#### `MutableState[T]` (extends State[T])
+- `set(value: T) -> None` - Set new value
+- `update(updater: (T) -> T) -> None` - Update with function
+- `bind_twoway(target: Widget, property: str) -> Binding` - Two-way binding (GTK only)
 
-The combination of reactive state management, declarative composition with `@apply`, and powerful factories makes building complex GTK applications both enjoyable and maintainable.
+### Style Classes (Qt only)
+
+#### `Style`
+- `Style(**properties) -> Style` - Create inline style
+- `Style[selector](**properties) -> Style` - Create style with selector
+- `with_selector(selector: str) -> Style` - Add selector to existing style
+- `compile() -> str` - Generate CSS string
+
+## Type Safety
+
+Full generic type support with proper inference:
+
+```python
+# Type is inferred as MutableState[int]
+count = MutableState(0)
+
+# Type is inferred as State[str]
+count_text = count.map(str)
+
+# Type is inferred as State[bool]
+is_positive = count.map(lambda x: x > 0)
+```
+
+## Contributing
+
+Contributions are welcome! Please see the repository for guidelines.
+
+## License
+
+This project is licensed under the MIT License.

@@ -14,6 +14,10 @@ Issues = "https://github.com/Microwave-WYB/impressive-ui/issues"
 
 [project.optional-dependencies]
 gtk = ["pygobject>=3.52.3", "pygobject-stubs>=2.13.0"]
+qt = [
+    "pyside6>=6.9.1",
+    "pyside6-stubs>=6.7.3.0",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -86,3 +86,15 @@ class AbstractMutableState(Generic[T], Protocol):
         Update the state using a function that takes the current value and returns a new value.
         """
         ...
+
+
+def check_state_impl(impl: type[AbstractState]) -> None:
+    """
+    For type checking purposes only, if the implementation does not match the protocol, this will be flagged by type checkers.
+    """
+
+
+def check_mutable_state_impl(impl: type[AbstractMutableState]) -> None:
+    """
+    For type checking purposes only, if the implementation does not match the protocol, this will be flagged by type checkers.
+    """
