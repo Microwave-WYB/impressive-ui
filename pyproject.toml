@@ -1,0 +1,30 @@
+[project]
+name = "impressive-ui"
+version = "0.0.0-dev"
+description = "A declarative, reactive UI framework for Python applications built on the impressive DSL"
+readme = "README.md"
+authors = [{ name = "Yibo Wei", email = "david_wyb2001@outlook.com" }]
+requires-python = ">=3.10"
+dependencies = ["impressive"]
+
+[project.urls]
+Homepage = "https://github.com/Microwave-WYB/impressive-ui"
+Repository = "https://github.com/Microwave-WYB/impressive-ui"
+Issues = "https://github.com/Microwave-WYB/impressive-ui/issues"
+
+[project.optional-dependencies]
+gtk = ["pygobject>=3.52.3", "pygobject-stubs>=2.13.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+impressive = { git = "https://github.com/Microwave-WYB/impressive.git" }
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.402",
+    "pytest>=8.4.0",
+    "ruff>=0.11.13",
+]
