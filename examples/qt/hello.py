@@ -2,15 +2,13 @@ import sys
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
-    QWidget,
     QVBoxLayout,
     QLabel,
     QLineEdit,
 )
 from PySide6.QtCore import Qt
 
-from impressive_ui.qt import MutableState
-from impressive_ui.qt.style import qss
+from impressive_ui.qt import MutableState, qss, container
 from impressive import apply
 
 
@@ -18,32 +16,25 @@ def HelloWorld():
     # Create reactive state
     name = MutableState("")
 
-    widget = QWidget()
-    layout = QVBoxLayout(widget)
+    widget, layout = container(QVBoxLayout)
     layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
     layout.setSpacing(12)
 
-    @apply(layout.addWidget)
+    @apply(layout.addWidget).foreach
     def _():
         entry = QLineEdit()
         entry.setPlaceholderText("Enter your name...")
         entry.setFixedWidth(200)
-        # Manual two-way binding using watch and signals
-        name.watch(entry.setText)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
             lambda: print(f"Entry activated with text: {name._value}")
         )
-        return entry
+        yield entry
 
-    @apply(layout.addWidget)
-    def _():
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Use watch pattern to update label text
-        greeting_state = name.map(lambda x: f"Hello, {x or '...'}!")
-        greeting_state.watch(lambda text: label.setText(text))
-        return label
+        name.map(lambda x: f"Hello, {x or '...'}!").watch(label.setText)
+        yield label
 
     return widget
 
@@ -82,9 +73,6 @@ if __name__ == "__main__":
         )
     )
 
-    central_widget = HelloWorld()
-    window.setCentralWidget(central_widget)
-
+    window.setCentralWidget(HelloWorld())
     window.show()
-
-    sys.exit(app.exec())
+    app.exec()
