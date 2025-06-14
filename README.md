@@ -568,6 +568,7 @@ python examples/qt/test_style.py  # Styling demonstration
 3. **Immutable Updates**: Always create new state rather than mutating
 4. **Component Composition**: Break UI into small, reusable components
 5. **Reactive Patterns**: Let state changes drive UI updates automatically
+6. **ViewModel State Encapsulation**: ViewModels should hold `MutableState` internally for data updates, but expose immutable `State` properties and transformation methods to views. This ensures the ViewModel is the single source of truth for state synchronization while preventing views from directly mutating state.
 
 ## Design Patterns
 
@@ -578,26 +579,36 @@ Recommended pattern for complex applications:
 ```python
 class TodoViewModel:
     def __init__(self):
+        # Private mutable state - only ViewModel can modify
         self._tasks = MutableState([])
         self._entry_text = MutableState("")
 
     @property
-    def tasks(self):
+    def tasks(self) -> State[list]:
+        """Expose immutable view of tasks for UI binding"""
         return self._tasks
 
     @property
-    def entry_text(self):
+    def entry_text(self) -> State[str]:
+        """Expose immutable view of entry text for UI binding"""
         return self._entry_text
 
+    # Transformation methods for view to trigger state changes
     def add_task(self):
+        """ViewModel controls all state mutations"""
         text = self._entry_text.value.strip()
         if text:
             new_task = TaskModel(text)
             self._tasks.update(lambda ts: [*ts, new_task])
             self._entry_text.set("")
 
+    def update_entry_text(self, text: str):
+        """Controlled way for view to update entry text"""
+        self._entry_text.set(text)
+
 def TodoView(view_model):
-    # UI components that bind to view model state
+    # UI components bind to immutable state properties
+    # and call ViewModel methods for state changes
     pass
 ```
 
