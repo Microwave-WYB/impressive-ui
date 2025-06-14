@@ -329,16 +329,6 @@ window.setStyleSheet(
 )
 ```
 
-#### Available Style Properties
-
-- **Layout**: `width`, `height`, `margin`, `padding`, `min_width`, `max_height`
-- **Colors**: `color`, `background_color`, `border_color`
-- **Typography**: `font_family`, `font_size`, `font_weight`, `text_align`
-- **Borders**: `border`, `border_radius`, `border_style`, `border_width`
-- **Effects**: `background` (gradients), `text_decoration`
-
-Python property names are automatically converted to CSS (e.g., `background_color` → `background-color`).
-
 ## GTK-Specific Features
 
 ### Factories
