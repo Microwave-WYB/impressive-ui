@@ -91,7 +91,7 @@ def HelloWorld():
         entry.setPlaceholderText("Enter your name...")
         entry.setFixedWidth(200)
         # Manual two-way binding using watch and signals
-        name.watch(lambda text: entry.setText(text) if entry.text() != text else None)
+        name.watch(entry.setText)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
             lambda: print(f"Entry activated with text: {name._value}")
@@ -104,7 +104,7 @@ def HelloWorld():
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Use watch pattern to update label
         greeting = name.map(lambda x: f"Hello, {x or '...'}!")
-        greeting.watch(lambda text: label.setText(text))
+        greeting.watch(label.setText)
         return label
 
     return widget
@@ -203,12 +203,12 @@ entry_text.bind_twoway(entry, "text")
 **Qt - Watch Pattern:**
 ```python
 # One-way binding using watch
-text_state.watch(lambda text: label.setText(text))
+text_state.watch(label.setText)
 # Or using property
 text_state.watch(lambda text: label.setProperty("text", text))
 
 # Manual two-way binding
-text_state.watch(lambda text: entry.setText(text) if entry.text() != text else None)
+text_state.watch(entry.setText)
 entry.textChanged.connect(text_state.set)
 ```
 
@@ -406,7 +406,7 @@ def HelloWorld():
     @apply(layout.addWidget)
     def _():
         entry = QLineEdit()
-        name.watch(lambda text: entry.setText(text) if entry.text() != text else None)
+        name.watch(entry.setText)
         entry.textChanged.connect(name.set)
         return entry
 
