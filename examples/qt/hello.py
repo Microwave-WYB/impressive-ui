@@ -29,7 +29,7 @@ def HelloWorld():
         entry.setPlaceholderText("Enter your name...")
         entry.setFixedWidth(200)
         # Manual two-way binding using watch and signals
-        name.watch(lambda text: entry.setText(text) if entry.text() != text else None)
+        name.watch(entry.setText)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
             lambda: print(f"Entry activated with text: {name._value}")
