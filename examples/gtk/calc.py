@@ -327,17 +327,11 @@ def CalculatorView(view_model: CalculatorViewModel) -> Gtk.Box:
         spacing=0,
     )
 
-    @apply(box.append)
+    @apply(box.append).foreach
     def _():
-        return ResultsDisplay(view_model)
-
-    @apply(box.append)
-    def _():
-        return Gtk.Separator()
-
-    @apply(box.append)
-    def _():
-        return Keypad(view_model)
+        yield ResultsDisplay(view_model)
+        yield Gtk.Separator()
+        yield Keypad(view_model)
 
     return box
 
