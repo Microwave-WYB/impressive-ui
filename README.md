@@ -213,34 +213,82 @@ unwatch()  # Stop watching
 
 ### Effects
 
-Effects provide a way to run async side effects that respond to state changes. They're useful for operations like timers, network requests, or any async work that needs to react to state updates.
+The `@effect` decorator transforms async functions into `Effect` objects that can be called like regular functions but run asynchronously in a background event loop. They're useful for operations like timers, network requests, or any async work.
 
 ```python
 import asyncio
-from impressive_ui.effect import effect
-from impressive_ui.utils import start_event_loop
+from concurrent.futures import Future
+from impressive_ui import effect, start_event_loop
 
 # Create an event loop (typically done once at app startup)
 event_loop, thread = start_event_loop()
 
-# Example: Auto-increment counter
+@effect(event_loop)
+async def fetch_data():
+    """An effect that can be called like a regular function"""
+    await asyncio.sleep(2)
+    return "Data fetched!"
+
+# Effects return Future objects from concurrent.futures
+start_button.connect("clicked", lambda *_: fetch_data())
+cancel_button.connect("clicked", lambda *_: fetch_data.cancel())
+
+# You can work with the Future if needed
+future = fetch_data()
+future.add_done_callback(lambda f: print(f"Result: {f.result()}"))
+```
+
+**State-Driven Effects**: The most powerful pattern combines effects with state watching using decorator chaining:
+
+```python
 auto_increment = MutableState(False)
 counter = MutableState(0)
 
 @auto_increment.watch
 @effect(event_loop)
 async def auto_increment_effect(enabled: bool):
-    """Effect that runs while auto-increment is enabled"""
+    """Effect receives state value as argument when state changes"""
     while enabled:
         await asyncio.sleep(1)
         counter.update(lambda x: x + 1)
 
-# Toggle auto-increment
-auto_increment.set(True)   # Effect starts running
-auto_increment.set(False)  # Effect stops
+# Multiple state dependencies
+@state1.watch
+@state2.watch  
+@effect(event_loop)
+async def multi_state_effect(value):
+    """Responds to changes in either state1 or state2"""
+    await handle_state_change(value)
 ```
 
-Effects automatically start when their watched state changes and can be cancelled when the state changes again. This pattern is ideal for managing async operations that need to respond to UI state.
+Effects automatically cancel previous runs when called again, making them perfect for managing async operations that respond to UI state changes.
+
+**Thread Safety Warning (GTK)**: Effects run on a separate event loop outside of GTK's main thread. Never directly modify GTK widgets from within effects (e.g., `label.set_label()`) as this is not thread safe and will cause crashes. Instead, use state updates which are thread safe:
+
+```python
+@some_state.watch
+@effect(event_loop)
+async def fetch_and_update(value):
+    # ❌ DON'T: Direct widget modification (not thread safe)
+    # label.set_label("Loading...")
+    
+    # ✅ DO: Update state (thread safe)
+    status.set("Loading...")
+    
+    result = await fetch_data(value)
+    
+    # ✅ DO: Update state with result (thread safe)
+    data.set(result)
+    status.set("Complete")
+    
+    # Alternative: use Future callbacks, but state updates are easier
+    # future.add_done_callback(lambda f: data.set(f.result()))
+    
+    # Or manually use GLib.idle_add for direct widget updates (not recommended)
+    # GLib.idle_add(lambda: label.set_label("Done"))
+```
+
+State updates from effects will automatically trigger UI updates through the normal binding mechanisms, keeping everything thread safe. While you can manually use `GLib.idle_add()` to safely modify GTK widgets from effects, state updates are preferred since they already handle this internally and maintain consistency with the reactive architecture.
 
 ### The `@apply` Decorator
 
