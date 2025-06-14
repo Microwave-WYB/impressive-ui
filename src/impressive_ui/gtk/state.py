@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from typing import Any, Generic, TypeVar, TYPE_CHECKING
-from gi.repository import GObject  # type: ignore
+from gi.repository import GLib, GObject  # type: ignore
 
 if TYPE_CHECKING:
     from impressive_ui.abc.state import (
@@ -15,7 +15,7 @@ U = TypeVar("U")
 # GObject doesn't support multiple inheritance
 # So we use check_state_impl and check_mutable_state_impl for implementation checks
 class State(GObject.GObject, Generic[T]):
-    value = GObject.Property(type=object)
+    value: T = GObject.Property(type=object)  # type: ignore
 
     def __init__(self, initial_value: T) -> None:
         super().__init__()
@@ -52,8 +52,10 @@ if TYPE_CHECKING:
 
 
 class MutableState(State[T], Generic[T]):
+    value: T = GObject.Property(type=object)  # type: ignore
+
     def set(self, value: T) -> None:
-        self.value = value
+        GLib.idle_add(lambda: setattr(self, "value", value))
 
     def update(self, updater: Callable[[T], T]) -> None:
         self.value = updater(self.value)
