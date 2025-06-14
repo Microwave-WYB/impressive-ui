@@ -445,6 +445,8 @@ python examples/gtk/todo.py       # Todo application
 python examples/gtk/calc.py       # Calculator with MVVM
 ```
 
+For more detailed information about the GTK examples, see the [GTK Examples README](examples/gtk/README.md).
+
 ### Qt Examples
 
 Run Qt examples from the repository:
