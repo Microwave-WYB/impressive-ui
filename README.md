@@ -66,46 +66,38 @@ import sys
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
-    QWidget,
     QVBoxLayout,
     QLabel,
     QLineEdit,
 )
 from PySide6.QtCore import Qt
 
-from impressive_ui.qt import MutableState, qss
+from impressive_ui.qt import MutableState, qss, container
 from impressive import apply
 
 def HelloWorld():
     # Create reactive state
     name = MutableState("")
 
-    widget = QWidget()
-    layout = QVBoxLayout(widget)
+    widget, layout = container(QVBoxLayout)
     layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
     layout.setSpacing(12)
 
-    @apply(layout.addWidget)
+    @apply(layout.addWidget).foreach
     def _():
         entry = QLineEdit()
         entry.setPlaceholderText("Enter your name...")
         entry.setFixedWidth(200)
-        # Manual two-way binding using watch and signals
-        name.watch(entry.setText)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
             lambda: print(f"Entry activated with text: {name._value}")
         )
-        return entry
+        yield entry
 
-    @apply(layout.addWidget)
-    def _():
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # Use watch pattern to update label
-        greeting = name.map(lambda x: f"Hello, {x or '...'}!")
-        greeting.watch(label.setText)
-        return label
+        name.map(lambda x: f"Hello, {x or '...'}!").watch(label.setText)
+        yield label
 
     return widget
 
@@ -207,9 +199,31 @@ text_state.watch(label.setText)
 # Or using property
 text_state.watch(lambda text: label.setProperty("text", text))
 
-# Manual two-way binding
-text_state.watch(entry.setText)
+# Simple one-way data flow (no two-way binding needed)
 entry.textChanged.connect(text_state.set)
+text_state.watch(label.setText)
+```
+
+### Container Utility (Qt)
+
+The `container` utility simplifies the common pattern of creating a widget with a layout:
+
+```python
+from impressive_ui.qt import container
+
+# Instead of manually creating widget and layout:
+widget = QWidget()
+layout = QVBoxLayout(widget)
+
+# Use container for convenience:
+widget, layout = container(QVBoxLayout)
+layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+layout.setSpacing(12)
+
+# Works with any layout type:
+widget, h_layout = container(QHBoxLayout)
+widget, grid_layout = container(QGridLayout)
+widget, form_layout = container(QFormLayout)
 ```
 
 ### The `@apply` Decorator
@@ -225,14 +239,12 @@ def _():
     button.clicked.connect(on_click)
     return button
 
-# Multiple widgets
+# Multiple widgets using yield
 @apply(layout.addWidget).foreach
 def _():
-    return (
-        QPushButton("Button 1"),
-        QPushButton("Button 2"),
-        QPushButton("Button 3"),
-    )
+    yield QPushButton("Button 1")
+    yield QPushButton("Button 2")
+    yield QPushButton("Button 3")
 ```
 
 ## Qt-Specific Features
