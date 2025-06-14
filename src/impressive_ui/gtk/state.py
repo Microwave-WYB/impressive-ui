@@ -75,7 +75,7 @@ class MutableState(State[T]):
         GLib.idle_add(lambda: setattr(self._obj, "value", value))
 
     def update(self, updater: Callable[[T], T]) -> None:
-        self._obj.value = updater(self._obj.value)
+        self.set(updater(self._obj.value))
 
     def bind_twoway(self, target: GObject.Object, property_name: str) -> Any:
         binding = self._obj.bind_property(

@@ -17,7 +17,7 @@ class QtStateObject(QObject, Generic[T]):
     A base class for Qt state objects that can be used with QObject signals.
     This class is not meant to be instantiated directly.
     """
-    
+
     valueChanged = Signal(object)
 
     def __init__(self, initial_value: T) -> None:
@@ -71,11 +71,10 @@ if TYPE_CHECKING:
 
 class MutableState(State[T]):
     def set(self, value: T) -> None:
-        QTimer.singleShot(0, lambda: setattr(self._obj, 'value', value))
+        QTimer.singleShot(0, lambda: setattr(self._obj, "value", value))
 
     def update(self, updater: Callable[[T], T]) -> None:
-        new_value = updater(self._obj.value)
-        self.set(new_value)
+        self.set(updater(self._obj.value))
 
 
 if TYPE_CHECKING:

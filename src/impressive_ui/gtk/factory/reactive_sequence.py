@@ -1,15 +1,18 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from typing import Any, TypeVar, overload
 
 import gi
 
 
-from impressive_ui.gtk.state import State
-from impressive_ui.reactive_sequence import bind_sequence, insert_widget, remove_widget
+from impressive_ui.gtk import State
+from impressive_ui.reactive_sequence import insert_widget, remove_widget, diff_update
 
 gi.require_version("Gtk", "4.0")
 
 from gi.repository import Gtk  # type: ignore # noqa: E402
+
+ItemT = TypeVar("ItemT")
+KeyT = TypeVar("KeyT", bound=Any)
 
 
 @insert_widget.register
@@ -102,5 +105,54 @@ def ReactiveSequence(
     key_fn: Callable[[ItemT], KeyT] = id,
 ) -> Gtk.Widget:
     """Bind a sequence state to a GTK container with efficient diff updates."""
-    bind_sequence(container, items, key_fn=key_fn)(factory)
+
+    # Use a dict to store mutable state
+    state = {"current_items": tuple(), "widget_by_key": {}}
+
+    def get_container_widgets() -> Iterator[Gtk.Widget]:
+        """Get current widgets in container in order."""
+        child = container.get_first_child()
+        while child:
+            yield child
+            child = child.get_next_sibling()
+
+    def remove_widget_from_container(widget: Gtk.Widget) -> None:
+        """Remove widget from container and clean up tracking."""
+        remove_widget(container, widget)
+
+        # Remove from tracking dict
+        for key, tracked_widget in list(state["widget_by_key"].items()):
+            if tracked_widget is widget:
+                del state["widget_by_key"][key]
+                break
+
+    def insert_widget_in_container(widget: Gtk.Widget, position: int) -> None:
+        """Insert widget at position in container."""
+        insert_widget(container, widget, position)
+
+    def create_and_track_widget(item: ItemT) -> Gtk.Widget:
+        """Create widget and track it by key."""
+        widget = factory(item)
+        state["widget_by_key"][key_fn(item)] = widget
+        return widget
+
+    @items.watch
+    def sync_items(new_items: Sequence[ItemT]):
+        """Sync container using efficient diff algorithm."""
+
+        diff_update(
+            container=None,  # We don't actually need this if we pass functions directly
+            old_source=state["current_items"],
+            new_source=new_items,
+            key_func=key_fn,
+            factory=create_and_track_widget,
+            remove=lambda _container, widget: remove_widget_from_container(widget),
+            insert=lambda _container, widget, pos: insert_widget_in_container(
+                widget, pos
+            ),
+            get_container_items=lambda _container: tuple(get_container_widgets()),
+        )
+
+        state["current_items"] = new_items
+
     return container

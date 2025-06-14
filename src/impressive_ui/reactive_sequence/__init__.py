@@ -1,4 +1,4 @@
-from .core import bind_sequence
+from .diff import diff_update
 from .dispatchers import (
     insert_widget,
     remove_widget,
@@ -6,7 +6,7 @@ from .dispatchers import (
 
 
 __all__ = [
-    "bind_sequence",
+    "diff_update",
     "insert_widget",
     "remove_widget",
 ]
