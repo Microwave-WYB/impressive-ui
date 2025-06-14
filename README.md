@@ -317,7 +317,7 @@ button.setStyleSheet(qss["QPushButton:hover"](
 ))
 
 # Multiple selectors
-container.setStyleSheet(qss[(QLabel, QPushButton)](
+container.setStyleSheet(qss[QLabel, QPushButton](
     font_family="Arial, sans-serif"
 ))
 
