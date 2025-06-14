@@ -4,6 +4,8 @@
 
 An (almost) declarative, reactive UI framework for Python applications, built on top of the [impressive](https://github.com/Microwave-WYB/impressive) DSL library. Impressive UI transforms traditional imperative UI programming into an expressive, functional approach with automatic state management and reactive data binding.
 
+**Key Philosophy**: Impressive UI doesn't "wrap" or replace GTK/Qt APIs. Instead, it provides reactive state management and declarative composition patterns that work seamlessly with native widgets and their full API surface. You still use `Gtk.Button()`, `QLabel()`, and all native methods - just with better state management.
+
 Currently supports both GTK and Qt with PySide6.
 
 ## Installation
@@ -25,38 +27,63 @@ pip install git+https://github.com/Microwave-WYB/impressive-ui.git[qt]
 ### GTK Example
 
 ```python
+from functools import partial
+
 import gi
+
 from impressive_ui.gtk import MutableState
 from impressive import apply
 
 gi.require_versions({"Gtk": "4.0", "Adw": "1"})
 from gi.repository import Adw, Gtk
 
+
 def HelloWorld():
+    # Create reactive state
     name = MutableState("")
 
-    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+    box = Gtk.Box(
+        orientation=Gtk.Orientation.VERTICAL,
+        spacing=12,
+        halign=Gtk.Align.CENTER,
+        valign=Gtk.Align.CENTER,
+    )
 
-    @apply(box.append)
+    @apply(box.append).foreach
     def _():
-        entry = Gtk.Entry(placeholder_text="Enter your name...")
+        entry = Gtk.Entry(placeholder_text="Enter your name...", width_request=200)
         name.bind_twoway(entry, "text")
-        return entry
+        entry.connect(
+            "activate",
+            lambda: print(f"Entry activated with text: {name.value}"),
+        )
+        yield entry
 
-    @apply(box.append)
-    def _():
         label = Gtk.Label(css_classes=["title-1"])
         name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "label")
-        return label
+        yield label
 
     return box
 
+
+# Create and run the app
+def App():
+    app = Adw.Application(application_id="com.example.HelloWorld")
+
+    @partial(app.connect, "activate")
+    def _(*_):
+        window = Adw.ApplicationWindow(
+            application=app,
+            title="Hello ReactiveGTK (Declarative)",
+            content=HelloWorld(),
+        )
+        window.present()
+
+    return app
+
+
 if __name__ == "__main__":
-    app = Adw.Application()
-    app.connect("activate", lambda app: Adw.ApplicationWindow(
-        application=app, content=HelloWorld()
-    ).present())
-    app.run([])
+    App().run([])
 ```
 
 ### Qt Example
@@ -146,13 +173,16 @@ if __name__ == "__main__":
 
 ## Why Impressive UI?
 
-Traditional UI programming requires manual state management, explicit event handling, and imperative DOM manipulation. Impressive UI provides:
+Traditional UI programming requires manual state management, explicit event handling, and imperative DOM manipulation. Impressive UI doesn't "wrap" GTK or Qt APIs - instead, it transforms imperative UI code into declarative patterns while preserving full access to native widget APIs and functionality.
+
+Impressive UI provides:
 
 - **Reactive State Management**: Automatic UI updates when state changes
 - **Type Safety**: Full generic type support with proper inference
-- **Declarative Patterns**: Compose UIs with functional programming
+- **Declarative Patterns**: Compose UIs with functional programming while using native APIs
 - **Framework-Optimized**: GTK gets property binding, Qt uses efficient watch patterns
 - **Modern Styling**: CSS-like styling with Python syntax (Qt)
+- **No API Wrapping**: Direct access to all native GTK/Qt widgets and methods
 
 ## Core Concepts
 
@@ -204,7 +234,37 @@ entry.textChanged.connect(text_state.set)
 text_state.watch(label.setText)
 ```
 
-### Container Utility (Qt)
+### The `@apply` Decorator
+
+The `@apply` decorator enables powerful composition patterns:
+
+```python
+# Simple widget creation
+@apply(box.append)
+def _():
+    button = Gtk.Button(label="Click me")
+    button.connect("clicked", on_click)
+    return button
+
+# Multiple widgets using foreach - accepts any iterable
+@apply(box.append).foreach
+def _():
+    yield Gtk.Button(label="Button 1")
+    yield Gtk.Button(label="Button 2")
+    yield Gtk.Button(label="Button 3")
+
+# foreach works with lists, tuples, generators, or any iterable
+@apply(box.append).foreach
+def _():
+    return [
+        Gtk.Button(label="From List"),
+        Gtk.Button(label="Also From List"),
+    ]
+```
+
+## Qt-Specific Features
+
+### Container Utility
 
 The `container` utility simplifies the common pattern of creating a widget with a layout:
 
@@ -225,29 +285,6 @@ widget, h_layout = container(QHBoxLayout)
 widget, grid_layout = container(QGridLayout)
 widget, form_layout = container(QFormLayout)
 ```
-
-### The `@apply` Decorator
-
-The `@apply` decorator enables powerful composition patterns:
-
-```python
-# Simple widget creation
-@apply(layout.addWidget)  # Qt
-@apply(box.append)        # GTK
-def _():
-    button = QPushButton("Click me")  # or Gtk.Button()
-    button.clicked.connect(on_click)
-    return button
-
-# Multiple widgets using yield
-@apply(layout.addWidget).foreach
-def _():
-    yield QPushButton("Button 1")
-    yield QPushButton("Button 2")
-    yield QPushButton("Button 3")
-```
-
-## Qt-Specific Features
 
 ### Styling System
 
