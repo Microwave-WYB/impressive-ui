@@ -27,7 +27,7 @@ def HelloWorld():
         entry.setFixedWidth(200)
         entry.textChanged.connect(name.set)
         entry.returnPressed.connect(
-            lambda: print(f"Entry activated with text: {name._value}")
+            lambda: print(f"Entry activated with text: {name.value}")
         )
         yield entry
 

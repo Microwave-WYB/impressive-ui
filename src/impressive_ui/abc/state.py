@@ -7,6 +7,11 @@ T_co = TypeVar("T_co", covariant=True)
 
 @runtime_checkable
 class AbstractState(Generic[T_co], Protocol):
+    @property
+    def value(self) -> T_co:
+        """The current state value."""
+        ...
+
     def get(self) -> T_co:
         """Get the current state value."""
         ...

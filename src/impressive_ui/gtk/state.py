@@ -12,31 +12,46 @@ T = TypeVar("T")
 U = TypeVar("U")
 
 
-# GObject doesn't support multiple inheritance
-# So we use check_state_impl and check_mutable_state_impl for implementation checks
-class State(GObject.GObject, Generic[T]):
+class GtkStateObject(GObject.GObject, Generic[T]):
+    """
+    A base class for GTK state objects that can be used with GObject properties.
+    This class is not meant to be instantiated directly.
+    """
+
     value: T = GObject.Property(type=object)  # type: ignore
 
     def __init__(self, initial_value: T) -> None:
         super().__init__()
         self.value = initial_value
 
+
+class State(Generic[T]):
+    def __init__(self, initial_value: T) -> None:
+        self._obj = GtkStateObject(initial_value)
+
+    @property
+    def value(self) -> T:
+        """
+        The current state value.
+        This property is used to access the value of the state.
+        """
+        return self._obj.value
+
     def get(self) -> T:
         return self.value
 
     def watch(self, callback: Callable[[T], Any]) -> Callable[[], None]:
-        callback(self.value)  # Call immediately with current value
-        connection = self.connect("notify::value", lambda *_: callback(self.value))
-        return lambda: self.disconnect(connection)
-
-    def map(self, mapper: Callable[[T], U], /) -> "State[U]":
-        derived = MutableState(mapper(self.value))
-        self.watch(lambda v: derived.set(mapper(v)))
-        return derived
+        callback(self._obj.value)
+        connection = self._obj.connect(
+            "notify::value", lambda *_: callback(self._obj.value)
+        )
+        return lambda: self._obj.disconnect(connection)
 
     def bind(self, target: GObject.Object, property_name: str) -> GObject.Binding:
-        """Bind this state to a GObject property using GTK's property binding system."""
-        return self.bind_property(
+        """
+        Bind this state to a GObject property using GTK's property binding system.
+        """
+        return self._obj.bind_property(
             "value",
             target,
             property_name,
@@ -45,23 +60,25 @@ class State(GObject.GObject, Generic[T]):
             lambda binding, value: value,
         )
 
+    def map(self, mapper: Callable[[T], U], /) -> "State[U]":
+        derived = MutableState(mapper(self._obj.value))
+        self.watch(lambda v: derived.set(mapper(v)))
+        return derived
+
 
 if TYPE_CHECKING:
-    # ensure State implements AbstractState
     check_state_impl(State)
 
 
-class MutableState(State[T], Generic[T]):
-    value: T = GObject.Property(type=object)  # type: ignore
-
+class MutableState(State[T]):
     def set(self, value: T) -> None:
-        GLib.idle_add(lambda: setattr(self, "value", value))
+        GLib.idle_add(lambda: setattr(self._obj, "value", value))
 
     def update(self, updater: Callable[[T], T]) -> None:
-        self.value = updater(self.value)
+        self._obj.value = updater(self._obj.value)
 
     def bind_twoway(self, target: GObject.Object, property_name: str) -> Any:
-        binding = self.bind_property(
+        binding = self._obj.bind_property(
             "value",
             target,
             property_name,
@@ -73,5 +90,4 @@ class MutableState(State[T], Generic[T]):
 
 
 if TYPE_CHECKING:
-    # ensure MutableState implements AbstractMutableState
     check_mutable_state_impl(MutableState)
