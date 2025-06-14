@@ -286,9 +286,9 @@ widget, grid_layout = container(QGridLayout)
 widget, form_layout = container(QFormLayout)
 ```
 
-### Styling System
+### QSS DSL
 
-Qt implementation includes a powerful CSS-in-Python styling system using `qss`:
+Qt implementation includes a powerful stylesheet DSL using `qss`:
 
 ```python
 from impressive_ui.qt import qss
@@ -323,9 +323,9 @@ container.setStyleSheet(qss[(QLabel, QPushButton)](
 
 # Combine stylesheets with simple string concatenation
 window.setStyleSheet(
-    qss[QMainWindow](background_color="#f0f0f0") +
-    qss[QPushButton](color="blue") +
-    qss[QLabel](font_weight="bold")
+    qss[QMainWindow](background_color="#f0f0f0")
+    + qss[QPushButton](color="blue")
+    + qss[QLabel](font_weight="bold")
 )
 ```
 
