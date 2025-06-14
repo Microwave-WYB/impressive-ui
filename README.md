@@ -211,28 +211,36 @@ unwatch = counter.watch(lambda value: print(f"Count: {value}"))
 unwatch()  # Stop watching
 ```
 
-### Framework-Specific Binding
+### Effects
 
-**GTK - Built-in Property Binding:**
+Effects provide a way to run async side effects that respond to state changes. They're useful for operations like timers, network requests, or any async work that needs to react to state updates.
+
 ```python
-# One-way binding (property name only)
-text_state.bind(label, "label")
+import asyncio
+from impressive_ui.effect import effect
+from impressive_ui.utils import start_event_loop
 
-# Two-way binding
-entry_text.bind_twoway(entry, "text")
+# Create an event loop (typically done once at app startup)
+event_loop, thread = start_event_loop()
+
+# Example: Auto-increment counter
+auto_increment = MutableState(False)
+counter = MutableState(0)
+
+@auto_increment.watch
+@effect(event_loop)
+async def auto_increment_effect(enabled: bool):
+    """Effect that runs while auto-increment is enabled"""
+    while enabled:
+        await asyncio.sleep(1)
+        counter.update(lambda x: x + 1)
+
+# Toggle auto-increment
+auto_increment.set(True)   # Effect starts running
+auto_increment.set(False)  # Effect stops
 ```
 
-**Qt - Watch Pattern:**
-```python
-# One-way binding using watch
-text_state.watch(label.setText)
-# Or using property
-text_state.watch(lambda text: label.setProperty("text", text))
-
-# Simple one-way data flow (no two-way binding needed)
-entry.textChanged.connect(text_state.set)
-text_state.watch(label.setText)
-```
+Effects automatically start when their watched state changes and can be cancelled when the state changes again. This pattern is ideal for managing async operations that need to respond to UI state.
 
 ### The `@apply` Decorator
 
@@ -261,6 +269,29 @@ def _():
         Gtk.Button(label="Also From List"),
     ]
 ```
+
+### UI Binding
+
+Both frameworks use the universal `watch` method for state-to-UI binding. GTK additionally provides convenient `bind` methods that leverage GTK4's built-in property binding system.
+
+**Universal Pattern (both GTK and Qt):**
+```python
+# Watch for state changes and update UI manually
+text_state.watch(label.setText)  # Qt
+text_state.watch(lambda text: label.set_label(text))  # GTK
+
+# Connect UI events back to state
+entry.textChanged.connect(text_state.set)  # Qt
+entry.connect("changed", lambda w: text_state.set(w.get_text()))  # GTK
+```
+
+**GTK Convenience Methods:**
+```python
+# GTK4 provides additional convenience via built-in property binding
+text_state.bind(label, "label")  # One-way binding
+entry_text.bind_twoway(entry, "text")  # Two-way binding
+```
+
 
 ## Qt-Specific Features
 
@@ -337,12 +368,15 @@ GTK implementation provides high-level factory functions:
 
 #### ReactiveSequence
 
-Automatically manage dynamic lists of widgets:
+Automatically manage dynamic lists of widgets.
+
+**Important for Type Safety**: When using ReactiveSequence, explicitly specify `Sequence` as the type parameter for your state. This prevents accidental mutation via `state.value.append()` and ensures type checkers catch these errors. Instead, use immutable update patterns like `state.update(lambda ts: [*ts, new_item])`.
 
 ```python
 from impressive_ui.gtk import ReactiveSequence
+from typing import Sequence
 
-tasks = MutableState([
+tasks = MutableState[Sequence[TaskViewModel]]([
     TaskViewModel("Buy groceries"),
     TaskViewModel("Walk the dog"),
 ])
