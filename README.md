@@ -419,17 +419,15 @@ def HelloWorld():
 
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-    @apply(box.append)
+    @apply(box.append).foreach
     def _():
         entry = Gtk.Entry()
         name.bind_twoway(entry, "text")
-        return entry
+        yield entry
 
-    @apply(box.append)
-    def _():
         label = Gtk.Label()
         name.map(lambda x: f"Hello, {x or '...'}!").bind(label, "label")
-        return label
+        yield label
 
     return box
 ```
@@ -442,19 +440,16 @@ def HelloWorld():
     widget = QWidget()
     layout = QVBoxLayout(widget)
 
-    @apply(layout.addWidget)
+    @apply(layout.addWidget).foreach
     def _():
         entry = QLineEdit()
         name.watch(entry.setText)
         entry.textChanged.connect(name.set)
-        return entry
+        yield entry
 
-    @apply(layout.addWidget)
-    def _():
         label = QLabel()
-        greeting = name.map(lambda x: f"Hello, {x or '...'}!")
-        greeting.watch(lambda text: label.setText(text))
-        return label
+        name.map(lambda x: f"Hello, {x or '...'}!").watch(label.setText)
+        yield label
 
     return widget
 ```
